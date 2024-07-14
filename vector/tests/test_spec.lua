@@ -1,4 +1,8 @@
-local vector = require './vector/vector'
+
+local vPath = debug.getinfo(1).source:match("@?(.*/)")
+vPath = string.gsub(vPath, "/tests", "") .. "vector"
+print("V-PATH: "..vPath)
+local vector = require(vPath)
 
 describe('Vector', function()
     it('should create a new vector', function()
