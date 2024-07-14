@@ -2,5 +2,5 @@ vector/vector.lua
 ccClass/ccClass.lua
 http/http.lua
 fs/fs.lua
-helperfunctions/helperfunctions.lua
+helperFunctions/helperFunctions.lua
 json/json.lua
