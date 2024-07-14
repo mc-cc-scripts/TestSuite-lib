@@ -1,7 +1,6 @@
 
 local vPath = debug.getinfo(1).source:match("@?(.*/)")
 vPath = string.gsub(vPath, "/tests", "") .. "vector"
-print("V-PATH: "..vPath)
 local vector = require(vPath)
 
 describe('Vector', function()
