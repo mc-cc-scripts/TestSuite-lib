@@ -1,5 +1,5 @@
 local cPath = debug.getinfo(1).source:match("@?(.*/)")
-cPath = string.gsub(cPath, "/vector/", "ccClass/ccClass")
+cPath = string.gsub(cPath, "/vector/", "/ccClass/ccClass")
 ---@type function
 local class = require(cPath)
 
