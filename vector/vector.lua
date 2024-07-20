@@ -7,6 +7,7 @@ local class = require(cPath)
 ---@field x number
 ---@field y number
 ---@field z number
+---@field new function @Create a new Vector
 ---@field add function @Add two vectors
 ---@field sub function @Subtract two vectors
 ---@field mul function @Multiply by value
