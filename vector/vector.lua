@@ -40,9 +40,9 @@ function Vector.new(x, y, z)
         __index = Vector
     }
     local v = setmetatable({}, mt)
-    v.x = x
-    v.y = y
-    v.z = z
+    v.x = x or 0
+    v.y = y or 0
+    v.z = z or 0
     return v
 end
 
