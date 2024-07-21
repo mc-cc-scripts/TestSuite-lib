@@ -149,7 +149,7 @@ end
 function Vector:transformLeft()
     local v = Vector.new(self.x, self.y, self.z)
     v.z = self.x * -1
-    v.x = self.Z
+    v.x = self.z
     return v
 end
 
