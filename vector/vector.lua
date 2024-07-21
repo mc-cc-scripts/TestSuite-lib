@@ -29,6 +29,9 @@ local Vector = {}
 ---@param z number
 ---@return Vector
 function Vector.new(x, y, z)
+    assert(type(x) == "number", "x must be a number")
+    assert(type(y) == "number", "y must be a number")
+    assert(type(z) == "number", "z must be a number")
     local mt = {
         __add = Vector.add,
         __sub = Vector.sub,
@@ -134,6 +137,20 @@ end
 ---@return boolean
 function Vector:equals(other)
     return self.x == other.x and self.y == other.y and self.z == other.z
+end
+
+function Vector:transformRight()
+    local v = Vector.new(self.x, self.y, self.z)
+    v.x = self.z * -1
+    v.z = self.x
+    return v
+end
+
+function Vector:transformLeft()
+    local v = Vector.new(self.x, self.y, self.z)
+    v.z = self.x * -1
+    v.x = self.Z
+    return v
 end
 
 
