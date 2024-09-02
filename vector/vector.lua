@@ -21,6 +21,8 @@ local class = require(cPath)
 ---@field toString function @Returns a String of the vector
 ---@field equals function @check if two vectors are equal
 
+---@type Vector
+---@diagnostic disable-next-line: missing-fields
 local Vector = {}
 
 ---Create a new Vector
