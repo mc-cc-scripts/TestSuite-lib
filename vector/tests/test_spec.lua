@@ -4,7 +4,7 @@ local spath =
     if spath == "" then
         spath = "./"
     end
-require(spath .. "package")
+require(spath .. "ccPackage")
 local vector = require("vector")
 
 describe('Vector', function()
