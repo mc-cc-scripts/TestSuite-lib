@@ -1,7 +1,11 @@
 
-local vPath = debug.getinfo(1).source:match("@?(.*/)")
-vPath = string.gsub(vPath, "/tests", "") .. "vector"
-local vector = require(vPath)
+local spath =
+    debug.getinfo(1,'S').source:sub(2):gsub("/+", "/"):gsub("[^/]*$",""):gsub("/vector/tests", ""):gsub("vector/tests", "")
+    if spath == "" then
+        spath = "./"
+    end
+require(spath .. "package")
+local vector = require("vector")
 
 describe('Vector', function()
     it('should create a new vector', function()
