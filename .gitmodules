@@ -1,0 +1,3 @@
+[submodule "helperFunctions"]
+	path = helperFunctions
+	url = https://github.com/mc-cc-scripts/helperFunctions-lib.git
