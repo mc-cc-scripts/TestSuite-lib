@@ -141,18 +141,24 @@ function Vector:equals(other)
     return self.x == other.x and self.y == other.y and self.z == other.z
 end
 
-function Vector:transformRight()
-    local v = Vector.new(self.x, self.y, self.z)
-    v.x = self.z * -1
-    v.z = self.x
-    return v
-end
-
-function Vector:transformLeft()
-    local v = Vector.new(self.x, self.y, self.z)
-    v.z = self.x * -1
-    v.x = self.z
-    return v
+---Rotate the vector by a given angle (90, 180, 270 degrees) around the Z-axis
+---@param angle number @The angle to rotate (90, 180, or 270)
+---@return Vector
+function Vector:rotate(angle)
+    local newX, newZ
+    if angle == 90 then
+        newX = -self.z
+        newZ = self.x
+    elseif angle == 180 then
+        newX = -self.x
+        newZ = -self.z
+    elseif angle == 270 then
+        newX = self.z
+        newZ = -self.x
+    else
+        error("Invalid angle. Only 90, 180, and 270 degrees are supported.")
+    end
+    return Vector.new(newX,self.y, newZ)
 end
 
 

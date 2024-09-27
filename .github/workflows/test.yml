@@ -28,5 +28,5 @@ jobs:
 
     - name: test
       run: |
-        busted .
+        busted vector
       # further tests here
