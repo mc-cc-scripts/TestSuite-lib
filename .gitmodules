@@ -4,3 +4,4 @@
 [submodule "eventCallStack-lib"]
 	path = eventCallStack-lib
 	url = https://github.com/mc-cc-scripts/eventCallStack-lib.git
+	branch = master
