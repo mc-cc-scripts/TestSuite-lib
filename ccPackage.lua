@@ -7,4 +7,5 @@ package.path = spath.."?.lua;"
     ..spath.."http/?.lua;"
     ..spath.."json/?.lua;"
     ..spath.."vector/?.lua;"
+    ..spath.."eventCallStack-lib/?.lua"
     ..package.path
