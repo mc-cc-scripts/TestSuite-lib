@@ -1,10 +1,4 @@
-
-local spath =
-    debug.getinfo(1,'S').source:sub(2):gsub("/+", "/"):gsub("[^/]*$",""):gsub("/vector/tests", ""):gsub("vector/tests", "")
-    if spath == "" then
-        spath = "./"
-    end
-require(spath .. "ccPackage")
+package.path = package.path.. ";libs/?.lua"
 local vector = require("vector")
 
 describe('Vector', function()

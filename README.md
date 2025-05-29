@@ -1,29 +1,21 @@
-# Install
+# TestSuite
 
-in your testfile(s), just add these few lines to automaticly install the test-suites in the /suits folder of your current path.
+This emulates the basic ccTweaked functions missing in basic-lua.
 
-```lua
--- Check if relvant suit is found(only relevant when testing locally)
--- otherwise run the installer
-if not pcall(function () io.open("./suits/vector/vector.lua", "r"):close() end) then
-    print("Downloading TestSuite-lib")
-    local http = require("socket.http")
-    local url = "https://raw.githubusercontent.com/mc-cc-scripts/TestSuite-lib/master/installSuit.lua" -- URL of the installer
-    local body, statusCode = http.request(url)
-    if statusCode == 200 then
-        local loader
-        if _VERSION == "Lua 5.1" then 
-            loader = loadstring
-        else
-            loader = load
-        end
-        local installScript = loader(body)().install()
-    else
-        error("Failed to download TestSuite-lib: " .. tostring(statusCode))
-    end
-end
-```
+- fs
+- http
+- vector-functions
 
-## Planned features
-Specify the install location for the suit
-update files already present / add missing files
+Additionally it emulates our **[scm](https://github.com/mc-cc-scripts/script-manager)** script and includes the **[json](https://gist.github.com/tylerneylon/59f4bcf316be525b30ab)** handler - which makes tests a lot easier.
+
+# Usage
+
+As this repo emulates many functionalites given by ccTweaked, you might want to test you code **outside** of Minecraft, maybe even automated. To achieve that, you need to download the scripts listed above and save them in your testingenv.
+
+Ideally you want to add those scripts to your .gitignore and only add them locally / for github actions.
+
+### Example
+
+For how to import the scipts, an example is already used by this repo for some of its dependancies:
+
+[fetch-deps.sh](fetch-deps.sh)

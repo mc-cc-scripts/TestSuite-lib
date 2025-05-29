@@ -1,6 +1,5 @@
-vector/vector.lua
-ccClass/ccClass.lua
-http/http.lua
-fs/fs.lua
-helperFunctions/helperFunctions.lua
-json/json.lua
+libs/vector.lua
+libs/http.lua
+libs/fs.lua
+libs/json.lua
+libs/scm.lua

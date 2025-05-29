@@ -1,6 +1,0 @@
-[submodule "helperFunctions"]
-	path = helperFunctions
-	url = https://github.com/mc-cc-scripts/helperFunctions-lib.git
-[submodule "eventCallStack-lib"]
-	path = eventCallStack-lib
-	url = https://github.com/mc-cc-scripts/eventCallStack-lib.git
