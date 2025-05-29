@@ -34,6 +34,8 @@ fetch() {
     done < <(echo  "$files_txt")
 }
 
+mkdir -p $targetFolderName
+
 for i in "${libs[@]}"; do
     fetch "$i"
 done

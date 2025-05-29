@@ -27,7 +27,9 @@ jobs:
         luarocks install luasec
 
     - name: fetch dependencies
-      run: ./fetch-deps.sh
+      run: |
+        chmod +x ./fetch-deps.sh
+        ./fetch-deps.sh
 
     - name: test
       run: |
