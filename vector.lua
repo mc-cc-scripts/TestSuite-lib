@@ -1,7 +1,5 @@
-local cPath = debug.getinfo(1).source:match("@?(.*/)")
-cPath = string.gsub(cPath, "/vector/", "/ccClass/ccClass")
 ---@type function
-local class = require(cPath)
+local class = require("ccClass")
 
 ---@class Vector
 ---@field x number

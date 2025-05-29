@@ -26,7 +26,11 @@ jobs:
         luarocks install luasocket
         luarocks install luasec
 
+    - name: fetch dependencies
+      run: |
+        chmod +x ./fetch-deps.sh
+        ./fetch-deps.sh
+
     - name: test
       run: |
         busted vector
-      # further tests here
