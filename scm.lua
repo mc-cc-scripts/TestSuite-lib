@@ -2,7 +2,16 @@
 local scm = {}
 
 function scm:load(name)
-    return require(name)
+    local success, result = pcall(function()
+        return require(name)
+    end)
+    if success then
+        return result
+    else
+        print(debug.traceback("Error while loading Module: " .. name))
+        error(result)
+    end
+
 end
 
 
