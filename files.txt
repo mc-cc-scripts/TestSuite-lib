@@ -1,5 +1,5 @@
-libs/vector.lua
-libs/http.lua
-libs/fs.lua
-libs/json.lua
-libs/scm.lua
+vector.lua
+http.lua
+fs.lua
+json.lua
+scm.lua
