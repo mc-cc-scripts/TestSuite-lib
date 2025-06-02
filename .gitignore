@@ -1,6 +1,5 @@
 /config
 /.vscode
 /computer
-/libs/eventCallStack.lua
-/libs/helperFunctions.lua
 /libs/ccClass.lua
+/tmp
