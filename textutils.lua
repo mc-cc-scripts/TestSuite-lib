@@ -104,7 +104,7 @@ local function serialize_impl(t, tracking, indent, opts)
         return tostring(t)
 
     else
-        error("Cannot serialize type " .. sType, 0)
+        return "Cannot serialize type " .. sType
 
     end
 end
