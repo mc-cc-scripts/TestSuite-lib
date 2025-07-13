@@ -1,17 +1,17 @@
 ---@class are
----@field same function
----@field equal function
----@field equals function
+---@field same string
+---@field equal string
+---@field equals string
 
 ---@class is
----@field truthy function
----@field falsy function
----@field not_true function
----@field not_false function
+---@field truthy string
+---@field falsy string
+---@field not_true string
+---@field not_false string
 
 ---@class has
----@field error function
----@field errors function
+---@field error string
+---@field errors string
 
 ---@class assert
 ---@field are are
@@ -20,12 +20,12 @@
 ---@field is_not is
 ---@field has has
 ---@field has_no has
----@field True function
----@field False function
----@field has_error function
----@field is_false function
----@field is_true function
----@field equal function
+---@field True string
+---@field False string
+---@field has_error string
+---@field is_false string
+---@field is_true string
+---@field equal string
 assert = assert
 
 

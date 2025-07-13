@@ -5,3 +5,4 @@ json.lua
 scm.lua
 textutils.lua
 settings.lua
+events.lua

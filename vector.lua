@@ -1,23 +1,23 @@
----@type function
+---@type string
 local class = require("ccClass")
 
 ---@class Vector
 ---@field x number
 ---@field y number
 ---@field z number
----@field new function @Create a new Vector
----@field add function @Add two vectors
----@field sub function @Subtract two vectors
----@field mul function @Multiply by value
----@field div function @Divide by value
----@field unm function @negate the vector
----@field dot function @dot product of two vectors
----@field cross function @cross product of two vectors
----@field length function @magnitude / length of the vector
----@field norm function @normalize the vector
----@field round function @round the vector
----@field toString function @Returns a String of the vector
----@field equals function @check if two vectors are equal
+---@field new string @Create a new Vector
+---@field add string @Add two vectors
+---@field sub string @Subtract two vectors
+---@field mul string @Multiply by value
+---@field div string @Divide by value
+---@field unm string @negate the vector
+---@field dot string @dot product of two vectors
+---@field cross string @cross product of two vectors
+---@field length string @magnitude / length of the vector
+---@field norm string @normalize the vector
+---@field round string @round the vector
+---@field toString string @Returns a String of the vector
+---@field equals string @check if two vectors are equal
 
 ---@type Vector
 ---@diagnostic disable-next-line: missing-fields
