@@ -4,3 +4,4 @@ local co = coroutine.create(function (a,b)
         end)
 print(coroutine.resume(co, "b"))
 print(coroutine.resume(co, "b"))
+

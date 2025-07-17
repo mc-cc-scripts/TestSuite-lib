@@ -13,76 +13,119 @@ local class = require("ccClass")
 ---@field timers timer[]
 ---@field currentID number
 
+---@class subThread
+---@field thread thread
+---@field waiting boolean
+
 ---@class ccEvent
 ---@field FIFOEventList Event[]
 ---@field FIFOTimerList timerList
----@field co thread
+---@field thread thread
+---@field subThreads table<string, subThread>
 ---@field time number eq. os.time("ingame") from ccTweaked)
 ---@field epoch number eq. os.epoch("ingame") from ccTweaked)
----@field private tmpObj any
-local Events = {}
-
----@param path string
----@return ccEvent
----@return table loadedModule
-function Events:new(path)
-
-    local eventObj = class(function(baseClass)
+---@field private run thread
+local Events = class(
+    function(baseClass)
         ---@cast baseClass ccEvent
         baseClass.FIFOEventList = {}
         baseClass.FIFOTimerList = {timers = {}, currentID = 1}
         baseClass.time = 0
         baseClass.epoch = 0
-        
-    end)()
-    
+        baseClass.subThreads = {}
+        baseClass.run = coroutine.create(
+            function()
+                while true do
+                    while #baseClass.FIFOEventList > 0 do
+                        local event = table.remove(baseClass.FIFOEventList, 1)
+                        ---@cast event Event
+                        if coroutine.status(baseClass.thread) == "suspended" then -- Modules should be "dead"
+                            coroutine.resume(baseClass.thread, event.eventName, table.unpack(event.eventArgs))
+                            -- just empty the list until an event was valid OR no Events are left
+                        end
+                        for key, value in pairs(baseClass.subThreads) do
+                            if value.waiting then
+                                assert(coroutine.status(value.thread) == "suspended")
+                                assert(coroutine.resume(value.thread, event.eventName, table.unpack(event.eventArgs)))
+                            end
+                        end
+                    end
+                    coroutine.yield("tick")
+                end
+            end
+        )
+    end
+)
+
+---@generic T
+---@param func function | T
+---@param wrapModule? boolean This will modify the Module!
+---@param ... any If loading a Module, these are the parameters
+---@return T|any|nil result if module is wrapped, it returns the wrapped module. 
+function Events:wrap(func, wrapModule, ...)
+    assert(self.subThreads, "Do not use Eventclass, create an Event-Object via 'local eventObj = ccEvent()'")
+    local manager = self
     local env = {}
         ---@class EventOS: oslib
     env.os = setmetatable({
 
-        pullEvent = function(name)
-            local t = {coroutine.yield(name)}
-            while not t or (name and t[1] ~= name) do
-                t = {coroutine.yield(name, "does not match")}
+        pullEvent = function(expectedEventName)
+            local firstStart = true
+            local event
+            while firstStart or (event[1] ~= expectedEventName) do
+                event = {coroutine.yield(expectedEventName)}
+                firstStart = false
             end
-            return table.unpack(t)
+            return table.unpack(event)
         end,
         queueEvent = function(name, ...)
-            eventObj:invoke(name, arg)
+            manager:invoke(name, arg)
         end,
         startTimer = function(time)
-            return eventObj:addTimer(time)
+            return manager:addTimer(time)
         end,
         cancleTimer = function(id)
-            eventObj:removeTimer(id)
+            manager:removeTimer(id)
         end
 
     }, {__index = os})
     setmetatable(env, {__index = _G})
-    
-    print("stuff", env.os.pullEvent)
-    local func = assert(loadfile(path, "t", env))
-    print("func", func)
+    setfenv(func, env)
 
-    eventObj.co = coroutine.create(function ()
-        return func()
-    end)
-    local _, loadedModule = coroutine.resume(eventObj.co)
-    return eventObj, loadedModule
+    
+    self.thread = coroutine.create(func)
+    
+    if(not wrapModule) then
+        return function(...)
+            local ok, result = coroutine.resume(self.thread, ...)
+            assert(ok, "coroutine Error: "..tostring(result))
+            return result
+        end
+    end
+    
+    local ok, result = coroutine.resume(self.thread, ...)
+    assert(ok, "Could not load Module")
+    assert(type(result) == "table")
+    for k,v in pairs(result) do
+        if type(v) == "function" and (self.subThreads[k] == nil)then
+            local thread = coroutine.create(v)
+            self.subThreads[k] = {
+                thread = thread,
+                waiting = false
+            }
+            result[k] =  function(...)
+                local ok, result = coroutine.resume(self.subThreads[k].thread, ...)
+                self.subThreads[k].waiting = coroutine.status(self.subThreads[k].thread) == "suspended"
+                assert(ok, "coroutine Error: "..tostring(result))
+                return result
+            end
+        end
+    end
+
+    return result
 end
 
 
-
----@param ccEvent ccEvent
-local run = coroutine.create(function(ccEvent)
-    while true do
-        while #ccEvent.FIFOEventList > 0 and coroutine.status(ccEvent.co) == "suspended" do
-            coroutine.resume(ccEvent.co, table.remove(ccEvent.FIFOEventList, 1))
-            -- just empty the list until an event was valid OR no Events are left
-        end
-        coroutine.yield("tick")
-    end
-end)
 
 function Events:addTimer(time)
     local triggerAt = time * 1000 + self.epoch
@@ -117,10 +160,10 @@ end
 
 function Events:invoke(eventName, ...)
     ---@type Event
-    local event = {eventName = eventName, receivedBy = {}, eventArgs = arg}
+    local event = {eventName = eventName, receivedBy = {}, eventArgs = ... or {}}
     table.insert(self.FIFOEventList, event)
     self.newEventAdded = true
-    coroutine.resume(run, "tick")
+    assert(coroutine.resume(self.run, "tick"))
 end
 
 return Events

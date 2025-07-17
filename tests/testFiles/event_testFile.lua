@@ -3,11 +3,10 @@ local TestFile = {
     status = {}
 }
 
-function TestFile:event1()
-    print("os.execute", os.execute)
-    print("os.pullEvent", os.pullEvent)
-    os.pullEvent()
-    self.status.event1 = "Fired"
+function TestFile:event1(p1)
+    local event = os.pullEvent(p1)
+    self.status.event1 = event
+    return p1
 end
 
 

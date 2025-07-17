@@ -34,18 +34,40 @@ package.path = package.path .. ";"
 local EventEmulator = require("events")
 
 describe("Event-Tests", function ()
-    ---@type ccEvent, TestFile
-    local eventManager, testModule
+    ---@type ccEvent, TestFile | nil, string
+    local eventManager, testModule, invokeWord
+    local path = "tests/testFiles/event_testFile.lua"
     before_each(function()
-        eventManager, testModule = EventEmulator:new("tests/testFiles/event_testFile.lua")
+        eventManager = EventEmulator()
     end)
     describe("Basics", function()
-        it("pull And Invoke", function()
+        it("Pull and invoke on function only", function ()
+            invokeWord = "testEvent"
+            local testFunc = eventManager:wrap(function(parameter)
+                assert(parameter == "parameterCheck")
+                os.pullEvent(invokeWord)
+            end, false)
+            
+            testFunc("parameterCheck")
+            assert.are.equal(coroutine.status(eventManager.thread), "suspended")
+            eventManager:invoke()
+            assert.are.equal(coroutine.status(eventManager.thread), "suspended")
+            eventManager:invoke(invokeWord)
+            assert.are.equal(coroutine.status(eventManager.thread), "dead")
+        end)
+        it("Pull and invoke on module", function()
+            local file = loadfile(path, "t")
+            testModule = eventManager:wrap(file, true)
             assert(type(testModule)=="table", type(testModule))
-            testModule:event1()
-            assert.is.falsy(testModule.status.event1)
-            eventManager:invoke("TestEvent")
-            assert.is.truthy(testModule.status.event1)
+            invokeWord = "test"
+            assert.are.equal(eventManager.subThreads.event1.waiting, false)
+            testModule:event1(invokeWord) -- start function (in thread)
+            assert.are.equal(eventManager.subThreads.event1.waiting, true)
+            eventManager:invoke("wrongword")
+            assert.are.equal(coroutine.status(eventManager.subThreads.event1.thread), "suspended")
+            eventManager:invoke(invokeWord)
+            assert.are.equal(coroutine.status(eventManager.subThreads.event1.thread), "dead")
+            assert.are.equal(testModule.status.event1, invokeWord)
         end)
     end)
 end)
