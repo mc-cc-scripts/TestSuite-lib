@@ -34,7 +34,7 @@ package.path = package.path .. ";"
 local EventEmulator = require("events")
 
 describe("Event-Tests", function ()
-    ---@type ccEvent, TestFile | nil, string
+    ---@type ccEvent, TestFile, string
     local eventManager, testModule, invokeWord
     local path = "tests/testFiles/event_testFile.lua"
     before_each(function()
@@ -49,25 +49,49 @@ describe("Event-Tests", function ()
             end, false)
             
             testFunc("parameterCheck")
-            assert.are.equal(coroutine.status(eventManager.thread), "suspended")
+            assert.are.equal("suspended", coroutine.status(eventManager.thread))
             eventManager:invoke()
-            assert.are.equal(coroutine.status(eventManager.thread), "suspended")
+            assert.are.equal("suspended", coroutine.status(eventManager.thread))
             eventManager:invoke(invokeWord)
-            assert.are.equal(coroutine.status(eventManager.thread), "dead")
+            assert.are.equal("dead", coroutine.status(eventManager.thread))
         end)
         it("Pull and invoke on module", function()
             local file = loadfile(path, "t")
             testModule = eventManager:wrap(file, true)
             assert(type(testModule)=="table", type(testModule))
+
             invokeWord = "test"
-            assert.are.equal(eventManager.subThreads.event1.waiting, false)
-            testModule:event1(invokeWord) -- start function (in thread)
-            assert.are.equal(eventManager.subThreads.event1.waiting, true)
+            assert.are.equal(false, eventManager.subThreads.event1.waiting)
+            testModule:event1(invokeWord) -- start function (runs in a thread)
+            assert.are.equal(true, eventManager.subThreads.event1.waiting)
             eventManager:invoke("wrongword")
-            assert.are.equal(coroutine.status(eventManager.subThreads.event1.thread), "suspended")
+            assert.are.equal("suspended", coroutine.status(eventManager.subThreads.event1.thread))
             eventManager:invoke(invokeWord)
-            assert.are.equal(coroutine.status(eventManager.subThreads.event1.thread), "dead")
-            assert.are.equal(testModule.status.event1, invokeWord)
+            assert.are.equal(false, eventManager.subThreads.event1.waiting)
+            assert.are.equal(invokeWord, testModule.status.event1)
         end)
+    end)
+    describe("Timer",function()
+        it("startTimer", function()
+            local file = loadfile(path, "t")
+            testModule = eventManager:wrap(file, true)
+            assert(testModule)
+
+            testModule:event2()
+            testModule:event2()
+            testModule:event2()
+            assert.are.same(1, #eventManager.TimerList.timers) -- only one timer is inserted, the pullEvent didn't trigger
+            
+            assert.are.same(1, testModule.status.event2)
+            eventManager:passTime(3)
+            assert.are.same(1, testModule.status.event2)
+            eventManager:passTime(1)
+            assert.are.same(1, testModule.status.event2)
+            eventManager:passTime(1)
+            assert.are.same(nil, testModule.status.event2)
+            eventManager:passTime(1)
+            assert.are.same(nil, testModule.status.event2) -- the next pullEvent should never be triggered
+        end)
+
     end)
 end)

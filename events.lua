@@ -14,12 +14,13 @@ local class = require("ccClass")
 ---@field currentID number
 
 ---@class subThread
+---@field originalFunction function 
 ---@field thread thread
 ---@field waiting boolean
 
 ---@class ccEvent
 ---@field FIFOEventList Event[]
----@field FIFOTimerList timerList
+---@field TimerList timerList
 ---@field thread thread
 ---@field subThreads table<string, subThread>
 ---@field time number eq. os.time("ingame") from ccTweaked)
@@ -29,14 +30,14 @@ local Events = class(
     function(baseClass)
         ---@cast baseClass ccEvent
         baseClass.FIFOEventList = {}
-        baseClass.FIFOTimerList = {timers = {}, currentID = 1}
+        baseClass.TimerList = {timers = {}, currentID = 1}
         baseClass.time = 0
         baseClass.epoch = 0
         baseClass.subThreads = {}
         baseClass.run = coroutine.create(
             function()
                 while true do
-                    while #baseClass.FIFOEventList > 0 do
+                    while #baseClass.FIFOEventList > 0 do -- TODO if a DID trigger something, stop?
                         local event = table.remove(baseClass.FIFOEventList, 1)
                         ---@cast event Event
                         if coroutine.status(baseClass.thread) == "suspended" then -- Modules should be "dead"
@@ -45,8 +46,10 @@ local Events = class(
                         end
                         for key, value in pairs(baseClass.subThreads) do
                             if value.waiting then
-                                assert(coroutine.status(value.thread) == "suspended")
                                 assert(coroutine.resume(value.thread, event.eventName, table.unpack(event.eventArgs)))
+                                if coroutine.status(value.thread) == "dead" then 
+                                    value.waiting = false
+                                end
                             end
                         end
                     end
@@ -61,7 +64,7 @@ local Events = class(
 ---@param func function | T
 ---@param wrapModule? boolean This will modify the Module!
 ---@param ... any If loading a Module, these are the parameters
----@return T|any|nil result if module is wrapped, it returns the wrapped module. 
+---@return T|nil result if module is wrapped, it returns the wrapped module. 
 function Events:wrap(func, wrapModule, ...)
     assert(self.subThreads, "Do not use Eventclass, create an Event-Object via 'local eventObj = ccEvent()'")
     local manager = self
@@ -79,9 +82,10 @@ function Events:wrap(func, wrapModule, ...)
             return table.unpack(event)
         end,
         queueEvent = function(name, ...)
-            manager:invoke(name, arg)
+            manager:invoke(name, ...)
         end,
         startTimer = function(time)
+            assert(type(time) == "number")
             return manager:addTimer(time)
         end,
         cancleTimer = function(id)
@@ -109,13 +113,21 @@ function Events:wrap(func, wrapModule, ...)
     for k,v in pairs(result) do
         if type(v) == "function" and (self.subThreads[k] == nil)then
             local thread = coroutine.create(v)
-            self.subThreads[k] = {
-                thread = thread,
-                waiting = false
-            }
+                self.subThreads[k] = {
+                    thread = thread,
+                    originalFunction = v,
+                    waiting = false
+                }
             result[k] =  function(...)
                 local ok, result = coroutine.resume(self.subThreads[k].thread, ...)
-                self.subThreads[k].waiting = coroutine.status(self.subThreads[k].thread) == "suspended"
+                local status = coroutine.status(self.subThreads[k].thread)
+                if status == "dead" then 
+                    -- "restart" function => create new Thread
+                    self.subThreads[k].thread = coroutine.create(self.subThreads[k].originalFunction)
+                    self.subThreads[k].waiting = false
+                else
+                    self.subThreads[k].waiting = true
+                end
                 assert(ok, "coroutine Error: "..tostring(result))
                 return result
             end
@@ -126,19 +138,22 @@ function Events:wrap(func, wrapModule, ...)
 end
 
 
-
+---@param time number seconds
+---@return number timerID
 function Events:addTimer(time)
-    local triggerAt = time * 1000 + self.epoch
-    local id = self.FIFOTimerList.currentID
-    self.FIFOTimerList.currentID = self.FIFOTimerList.currentID + 1
-    table.insert(self.FIFOTimerList.timers, {triggerAt = triggerAt, id = id})
+    assert(type(time) == "number" and time > 0)
+    local triggerAfter = time * 1000 + self.epoch - 1
+    local id = self.TimerList.currentID
+    self.TimerList.currentID = self.TimerList.currentID + 1
+    table.insert(self.TimerList.timers, {triggerAfter = triggerAfter, id = id})
     return id
 end
 
 function Events:removeTimer(id)
-    for k,v in pairs(self.FIFOTimerList.timers) do
+    assert(type(id) == "number")
+    for k,v in pairs(self.TimerList.timers) do
         if v.id == id then
-            self.FIFOTimerList.currentID[id] = nil
+            self.TimerList.currentID[id] = nil
         end
     end
 end
@@ -147,12 +162,15 @@ end
 ---Required for timers
 ---@param time number seconds
 function Events:passTime(time)
-    self.time = (self.time + (time / 60 / 24)) % 24
+    assert(type(time) == "number")
+    time = time * 1000
+    self.time = (self.time + (time / 60 / 24)) % 24 -- TODO: Test
     self.epoch = self.epoch + time
 
-    for key, value in pairs(self.FIFOTimerList.timers) do
-        if value.triggerAfter <= self.epoch then
+    for key, value in pairs(self.TimerList.timers) do
+        if value.triggerAfter < self.epoch then
             self:invoke("timer", value.id)
+            self.TimerList.timers[key] = nil
         end
     end
 
@@ -160,7 +178,7 @@ end
 
 function Events:invoke(eventName, ...)
     ---@type Event
-    local event = {eventName = eventName, receivedBy = {}, eventArgs = ... or {}}
+    local event = {eventName = eventName, receivedBy = {}, eventArgs = {...}}
     table.insert(self.FIFOEventList, event)
     self.newEventAdded = true
     assert(coroutine.resume(self.run, "tick"))
