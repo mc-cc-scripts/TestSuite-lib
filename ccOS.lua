@@ -18,7 +18,7 @@ local class = require("ccClass")
 ---@field thread thread
 ---@field waiting boolean
 
----@class ccEvent
+---@class ccOS
 ---@field FIFOEventList Event[]
 ---@field TimerList timerList
 ---@field thread thread
@@ -26,9 +26,9 @@ local class = require("ccClass")
 ---@field time number eq. os.time("ingame") from ccTweaked)
 ---@field epoch number eq. os.epoch("ingame") from ccTweaked)
 ---@field private run thread
-local Events = class(
+local ccOS = class(
     function(baseClass)
-        ---@cast baseClass ccEvent
+        ---@cast baseClass ccOS
         baseClass.FIFOEventList = {}
         baseClass.TimerList = {timers = {}, currentID = 1}
         baseClass.time = 0
@@ -65,9 +65,9 @@ local Events = class(
 ---@param wrapModule? boolean This will modify the Module!
 ---@param ... any If loading a Module, these are the parameters
 ---@return T|nil result if module is wrapped, it returns the wrapped module. 
-function Events:wrap(func, wrapModule, ...)
+function ccOS:wrap(func, wrapModule, ...)
     assert(self.subThreads, "Do not use Eventclass, create an Event-Object via 'local eventObj = ccEvent()'")
-    local manager = self
+    local ccOSInstance = self
     local env = {}
         ---@class EventOS: oslib
     env.os = setmetatable({
@@ -82,15 +82,31 @@ function Events:wrap(func, wrapModule, ...)
             return table.unpack(event)
         end,
         queueEvent = function(name, ...)
-            manager:invoke(name, ...)
+            ccOSInstance:invoke(name, ...)
         end,
         startTimer = function(time)
             assert(type(time) == "number")
-            return manager:addTimer(time)
+            return ccOSInstance:addTimer(time)
         end,
         cancleTimer = function(id)
-            manager:removeTimer(id)
-        end
+            ccOSInstance:removeTimer(id)
+        end,
+        sleep = function(time)
+            local expectedId = env.os.startTimer(time)
+            local correctTimer = false
+            while not correctTimer do
+                local _, id = env.os.pullEvent("timer")
+                correctTimer = id == expectedId
+            end
+        end,
+        time = function()
+            -- TODO: add locale
+            return ccOSInstance.time
+        end,
+        epoch = function()
+            -- TODO: add args
+            return ccOSInstance.epoch
+        end,
 
     }, {__index = os})
     setmetatable(env, {__index = _G})
@@ -140,7 +156,7 @@ end
 
 ---@param time number seconds
 ---@return number timerID
-function Events:addTimer(time)
+function ccOS:addTimer(time)
     assert(type(time) == "number" and time > 0)
     local triggerAfter = time * 1000 + self.epoch - 1
     local id = self.TimerList.currentID
@@ -149,11 +165,11 @@ function Events:addTimer(time)
     return id
 end
 
-function Events:removeTimer(id)
+function ccOS:removeTimer(id)
     assert(type(id) == "number")
     for k,v in pairs(self.TimerList.timers) do
         if v.id == id then
-            self.TimerList.currentID[id] = nil
+            self.TimerList.timers[id] = nil
         end
     end
 end
@@ -161,7 +177,7 @@ end
 ---Passes time (in Seconds)
 ---Required for timers
 ---@param time number seconds
-function Events:passTime(time)
+function ccOS:passTime(time)
     assert(type(time) == "number")
     time = time * 1000
     self.time = (self.time + (time / 60 / 24)) % 24 -- TODO: Test
@@ -176,7 +192,7 @@ function Events:passTime(time)
 
 end
 
-function Events:invoke(eventName, ...)
+function ccOS:invoke(eventName, ...)
     ---@type Event
     local event = {eventName = eventName, receivedBy = {}, eventArgs = {...}}
     table.insert(self.FIFOEventList, event)
@@ -184,4 +200,4 @@ function Events:invoke(eventName, ...)
     assert(coroutine.resume(self.run, "tick"))
 end
 
-return Events
+return ccOS

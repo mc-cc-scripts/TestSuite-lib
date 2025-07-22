@@ -7,6 +7,7 @@ This emulates the basic ccTweaked functions missing in basic-lua.
 - vector-functions
 - settings
   - (no validations what so ever as of yet)
+- os.pullEvent etc.
 
 Additionally it emulates our **[scm](https://github.com/mc-cc-scripts/script-manager)** script and includes the **[json](https://gist.github.com/tylerneylon/59f4bcf316be525b30ab)** handler - which makes tests a lot easier.
 
@@ -33,6 +34,10 @@ local scriptToTest = require("scriptToTest")
 -- this script can now access the fs- & vector-functions
 -- without any need to modify the script you want to test
 ```
+
+#### os
+[how to test with os functions](docs/ccOS.md)
+
 
 ### How to import these scripts
 

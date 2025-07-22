@@ -20,6 +20,11 @@ function TestFile:event2()
 
 end
 
+function TestFile:event3()
+    os.sleep(5)
+    self.status.event3 = true
+end
+
 
 
 return TestFile
