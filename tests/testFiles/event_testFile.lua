@@ -27,5 +27,11 @@ function TestFile:queueEvent(eventName)
     self.status.queueEvent = true
     return true
 end
+function TestFile:event3()
+    os.sleep(5)
+    self.status.event3 = true
+end
+
+
 
 return TestFile
