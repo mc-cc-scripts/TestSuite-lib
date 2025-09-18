@@ -5,6 +5,14 @@ local class = require("ccClass")
 ---@field eventArgs table | nil
 ---@field receivedBy table
 
+---@class _pullEventWrapper
+---@field expectedEventName string
+---@field firstStart boolean
+
+---@class Promise
+---@field fullFilled boolean
+---@field currentValue any
+
 ---@class timer
 ---@field id number
 ---@field triggerAfter number
@@ -16,16 +24,16 @@ local class = require("ccClass")
 ---@class subThread
 ---@field originalFunction function 
 ---@field thread thread
----@field waiting boolean
+---@field promise Promise
+---@field waiting boolean To confirm if a function was actually called or is just wrapped.
+-- Relevant for Events.run, as it resumes ALL coroutines - therefore invoking each method if not for this check
 
----@class ccEvent
+---@class ccEvent : subThread
 ---@field FIFOEventList Event[]
 ---@field TimerList timerList
----@field thread thread
 ---@field subThreads table<string, subThread>
 ---@field time number eq. os.time("ingame") from ccTweaked)
 ---@field epoch number eq. os.epoch("ingame") from ccTweaked)
----@field private run thread
 local Events = class(
     function(baseClass)
         ---@cast baseClass ccEvent
@@ -34,31 +42,35 @@ local Events = class(
         baseClass.time = 0
         baseClass.epoch = 0
         baseClass.subThreads = {}
-        baseClass.run = coroutine.create(
-            function()
-                while true do
-                    while #baseClass.FIFOEventList > 0 do -- TODO if a DID trigger something, stop?
-                        local event = table.remove(baseClass.FIFOEventList, 1)
-                        ---@cast event Event
-                        if coroutine.status(baseClass.thread) == "suspended" then -- Modules should be "dead"
-                            coroutine.resume(baseClass.thread, event.eventName, table.unpack(event.eventArgs))
-                            -- just empty the list until an event was valid OR no Events are left
-                        end
-                        for key, value in pairs(baseClass.subThreads) do
-                            if value.waiting then
-                                assert(coroutine.resume(value.thread, event.eventName, table.unpack(event.eventArgs)))
-                                if coroutine.status(value.thread) == "dead" then 
-                                    value.waiting = false
-                                end
-                            end
-                        end
-                    end
-                    coroutine.yield("tick")
-                end
-            end
-        )
     end
 )
+
+---comment
+---@param threadHolder subThread
+---@param ... any
+function Events:resumeThread(threadHolder, ...)
+    local ok
+    local wrapper
+    local result
+    
+    ok, result = coroutine.resume(threadHolder.thread, ...)
+    ---@cast result _pullEventWrapper | any
+    
+    wrapper = type(result) =="table" and (result.firstStart or result.firstStart == false)
+    local status = coroutine.status(threadHolder.thread)
+    threadHolder.promise.currentValue = wrapper and result.expectedEventName or result
+    threadHolder.promise.fullFilled = status == "dead"
+    threadHolder.waiting = not threadHolder.promise.fullFilled
+    assert(ok, debug.traceback("coroutine Error: "..tostring(result))) --TODO: Checkout current behaviour
+    if wrapper and result.firstStart and status == "suspended" then
+        result.firstStart = false
+        -- TODO: If there is a coroutine.yield with a table containing this value -> I need a better way to guard...
+        -- this is required bc. the test-script would normaly be in the "main" thread, therefore it would resume instantly
+        -- on os.pullEvent, assuming there is an Event already waiting prior
+        self:checkForUpdates()
+    end
+    return ok, threadHolder.promise.currentValue
+end
 
 ---@generic T
 ---@param func function | T
@@ -73,11 +85,12 @@ function Events:wrap(func, wrapModule, ...)
     env.os = setmetatable({
 
         pullEvent = function(expectedEventName)
-            local firstStart = true
+            ---@type _pullEventWrapper
+            local _pullEventWrapper = {expectedEventName = expectedEventName, firstStart = true}
             local event
-            while firstStart or (event[1] ~= expectedEventName) do
-                event = {coroutine.yield(expectedEventName)}
-                firstStart = false
+            while _pullEventWrapper.firstStart or (expectedEventName ~= nil and (event[1] ~= expectedEventName)) do
+                event = {coroutine.yield(_pullEventWrapper)}
+                ---@cast event Event
             end
             return table.unpack(event)
         end,
@@ -97,39 +110,53 @@ function Events:wrap(func, wrapModule, ...)
     setfenv(func, env)
 
     
-    self.thread = coroutine.create(func)
     
     if(not wrapModule) then
+        self.originalFunction = func
         return function(...)
-            local ok, result = coroutine.resume(self.thread, ...)
+            if self.thread == nil or coroutine.status(self.thread) == "dead" then 
+                self.waiting = true
+                self.promise = {
+                    currentValue = nil,
+                    fullFilled = false
+                }
+                -- "restart" function => create new Thread
+                self.thread = coroutine.create(self.originalFunction)
+                
+                self.waiting = false
+            end
+            local ok, result = self:resumeThread(self, ...)
             assert(ok, "coroutine Error: "..tostring(result))
             return result
         end
     end
-    
-    local ok, result = coroutine.resume(self.thread, ...)
+    local thread = coroutine.create(func)
+    local ok, result = coroutine.resume(thread, ...)
     assert(ok, "Could not load Module")
-    assert(type(result) == "table")
+    assert(type(result) == "table", "Module could not be loaded")
     for k,v in pairs(result) do
         if type(v) == "function" and (self.subThreads[k] == nil)then
             local thread = coroutine.create(v)
-                self.subThreads[k] = {
-                    thread = thread,
-                    originalFunction = v,
-                    waiting = false
+            self.subThreads[k] = {
+                thread = thread,
+                originalFunction = v,
+                waiting = false,
+                promise = {
+                    currentValue = nil,
+                    fullFilled = false
                 }
+            }
             result[k] =  function(...)
-                local ok, result = coroutine.resume(self.subThreads[k].thread, ...)
+                
                 local status = coroutine.status(self.subThreads[k].thread)
                 if status == "dead" then 
                     -- "restart" function => create new Thread
                     self.subThreads[k].thread = coroutine.create(self.subThreads[k].originalFunction)
                     self.subThreads[k].waiting = false
-                else
-                    self.subThreads[k].waiting = true
                 end
-                assert(ok, "coroutine Error: "..tostring(result))
-                return result
+                self:resumeThread(self.subThreads[k], ...)
+
+                return self.subThreads[k].promise
             end
         end
     end
@@ -164,7 +191,7 @@ end
 function Events:passTime(time)
     assert(type(time) == "number")
     time = time * 1000
-    self.time = (self.time + (time / 60 / 24)) % 24 -- TODO: Test
+    self.time = (self.time + (time / 60 / 24)) % 24
     self.epoch = self.epoch + time
 
     for key, value in pairs(self.TimerList.timers) do
@@ -180,8 +207,40 @@ function Events:invoke(eventName, ...)
     ---@type Event
     local event = {eventName = eventName, receivedBy = {}, eventArgs = {...}}
     table.insert(self.FIFOEventList, event)
-    self.newEventAdded = true
-    assert(coroutine.resume(self.run, "tick"))
+    self:checkForUpdates()
 end
+
+function Events:checkForUpdates()
+    local modifier = 0
+    
+    local removeEvent = function(i)
+            table.remove(self.FIFOEventList, i + modifier)
+            modifier = modifier - 1;
+    end
+
+    for i = 1,#self.FIFOEventList do
+        local read = false
+        local event = self.FIFOEventList[i + modifier]
+        ---@cast event Event
+        if self.waiting and coroutine.status(self.thread) == "suspended" then -- On it Modules should be "dead"
+        
+            removeEvent(i)
+            assert(self:resumeThread(self, event.eventName, table.unpack(event.eventArgs)))
+
+        end
+        for key, value in pairs(self.subThreads) do -- should be empty on Function
+            -- if status = running -> The thread making the call,- obvious skip
+            if value.waiting and coroutine.status(value.thread) ~= "normal" then
+                removeEvent(i)
+                assert(self:resumeThread(value, event.eventName, table.unpack(event.eventArgs)))
+                if coroutine.status(value.thread) == "dead" then 
+                    value.waiting = false
+                end
+                break;
+            end
+        end
+    end
+end
+
 
 return Events
