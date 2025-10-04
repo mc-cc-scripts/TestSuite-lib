@@ -6,3 +6,4 @@ scm.lua
 textutils.lua
 settings.lua
 events.lua
+ccOS.lua
